@@ -18,6 +18,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.xml.sax.SAXException;
+import ui.panes.AboutPane;
 import ui.panes.OptionsPane;
 import utilities.Utilities;
 import utilities.VariablesToSave;
@@ -39,7 +40,7 @@ public class UI extends Application implements Initializable {
     public MenuBar menuBar;
 
     private static String receivedPath = "";
-    public JFXDrawer optionsDrawer;
+    public JFXDrawer optionsDrawer, aboutDrawer;
 
     public Color colorTheme;
     private JFXDecorator decorator;
@@ -55,7 +56,6 @@ public class UI extends Application implements Initializable {
 
             decorator = new JFXDecorator(stage, root);
 
-            decorator.setCustomMaximize(true);
             Scene scene = new Scene(decorator, 800, 600);
 
             scene.getStylesheets().add(this.getClass().getResource("css/JMarkPad.css").toExternalForm());
@@ -71,7 +71,8 @@ public class UI extends Application implements Initializable {
 
 
             if (!receivedPath.equals("")) {
-                MyTab tab = new MyTab(receivedPath.split("\\\\")[receivedPath.split("\\\\").length - 1], tabPane, toRGB(colorTheme));
+                MyTab tab = new MyTab(receivedPath.split("\\\\")[receivedPath.split("\\\\").length - 1],
+                        tabPane, colorTheme);
                 try {
                     openFileIntoTab(new File(receivedPath), tab);
                     tab.setFilePath(receivedPath);
@@ -81,7 +82,7 @@ public class UI extends Application implements Initializable {
             } else {
 
                 if (tabPane.getTabs().size() < 1) {
-                    MyTab tab = new MyTab("New 1", tabPane, toRGB(colorTheme));
+                    MyTab tab = new MyTab("New 1", tabPane, colorTheme);
                     tabPane.getTabs().add(tab);
                 }
             }
@@ -105,7 +106,7 @@ public class UI extends Application implements Initializable {
                     Double.valueOf(xml.loadVariable("blue")), 1);
 
             for (String path : xml.loadVariables("file")) {
-                MyTab tab = new MyTab(path.split("\\\\")[path.split("\\\\").length - 1], tabPane, toRGB(colorTheme));
+                MyTab tab = new MyTab(path.split("\\\\")[path.split("\\\\").length - 1], tabPane, colorTheme);
                 File file = new File(path);
                 try {
                     openFileIntoTab(file, tab);
@@ -119,24 +120,25 @@ public class UI extends Application implements Initializable {
                 }
             }
 
-            new File("config.xml").delete();
-        } catch (SAXException | NullPointerException | IOException | ParserConfigurationException e) {
+        } catch (SAXException | IOException | ParserConfigurationException e) {
             e.printStackTrace();
-            colorTheme = new Color((double) 173 / 255, (double) 216 / 255,
-                    (double) 230 / 255, 1);
+
+        } catch (NullPointerException e) {
+            colorTheme = new Color((double) 0 / 255, (double) 151 / 255,
+                    (double) 167 / 255, 1);
+            System.err.println("\"config.xml\" file not found. Creating...");
         }
-
-
     }
 
     private void loadDrawers() {
 
         drawersStack.setMouseTransparent(true);
-        OptionsPane optionsPane = new OptionsPane(this);
-        FlowPane content = new FlowPane();
-        optionsDrawer = new JFXDrawer();
-        StackPane optionsDrawerPane = new StackPane();
 
+        FlowPane content = new FlowPane();
+
+        StackPane optionsDrawerPane = new StackPane();
+        optionsDrawer = new JFXDrawer();
+        OptionsPane optionsPane = new OptionsPane(this);
         optionsDrawerPane.getChildren().add(optionsPane);
         optionsDrawer.setDirection(DrawerDirection.RIGHT);
         optionsDrawer.setSidePane(optionsDrawerPane);
@@ -144,6 +146,17 @@ public class UI extends Application implements Initializable {
         optionsDrawer.setOverLayVisible(false);
         optionsDrawer.setResizableOnDrag(true);
 
+
+        aboutDrawer = new JFXDrawer();
+
+        AboutPane aboutPane = new AboutPane(this);
+        StackPane aboutDrawerPane = new StackPane();
+        aboutDrawerPane.getChildren().add(aboutPane);
+        aboutDrawer.setDirection(DrawerDirection.RIGHT);
+        aboutDrawer.setSidePane(aboutDrawerPane);
+        aboutDrawer.setDefaultDrawerSize(750);
+        aboutDrawer.setOverLayVisible(false);
+        aboutDrawer.setResizableOnDrag(true);
 
         drawersStack.setContent(content);
 
@@ -162,7 +175,7 @@ public class UI extends Application implements Initializable {
         while (newFileName.equals("")) {
             usedName = false;
             for (int i = 0; i < tabPane.getTabs().size(); i++) {
-                if (tabPane.getTabs().get(i).getText().equals("New " + counter)) {
+                if (tabPane.getTabs().get(i).getText().contains("New " + counter)) {
                     usedName = true;
                     i = tabPane.getTabs().size();
                 }
@@ -174,7 +187,7 @@ public class UI extends Application implements Initializable {
         }
 
 
-        MyTab tab = new MyTab(newFileName, tabPane, toRGB(colorTheme));
+        MyTab tab = new MyTab(newFileName, tabPane, colorTheme);
 
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().select(tab);
@@ -189,7 +202,7 @@ public class UI extends Application implements Initializable {
                 return;
             }
 
-            MyTab tab = new MyTab(file.getName(), tabPane, toRGB(colorTheme));
+            MyTab tab = new MyTab(file.getName(), tabPane, colorTheme);
             try {
                 openFileIntoTab(file, tab);
                 tab.setFilePath(file.getAbsolutePath());
@@ -205,40 +218,7 @@ public class UI extends Application implements Initializable {
 
     }
 
-    @FXML
-    public void optionsClicked(ActionEvent ae) {
-        drawersStack.toggle(optionsDrawer);
-        drawersStack.setMouseTransparent(false);
 
-    }
-
-
-    private boolean isFileIsAlreadyOpen(String filePath) {
-        boolean result = false;
-        for (int i = 0; i < tabPane.getTabs().size(); i++) {
-            MyTab currentlyOpenTab = (MyTab) tabPane.getTabs().get(i);
-            if (currentlyOpenTab.getFilePath().equals(filePath)) {
-                tabPane.getSelectionModel().select(i);
-                result = true;
-            }
-        }
-        return result;
-    }
-
-
-    private void openFileIntoTab(File file, MyTab tab) throws IOException {
-
-        BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
-        String text;
-
-        JFXTextArea textArea = new JFXTextArea("");
-        while ((text = bufferedReader.readLine()) != null) {
-            textArea.appendText(text + "\n");
-        }
-        bufferedReader.close();
-        tab.setTextArea(textArea);
-
-    }
 
     @FXML
     public void saveClicked(ActionEvent ae) {
@@ -269,6 +249,79 @@ public class UI extends Application implements Initializable {
         tabPane.getTabs().remove(tabPane.getSelectionModel().getSelectedIndex());
     }
 
+    @FXML
+    public void optionsClicked(ActionEvent ae) {
+        drawersStack.toggle(optionsDrawer);
+        drawersStack.setMouseTransparent(false);
+
+    }
+
+    @FXML
+    public void markDownHelpClicked(ActionEvent ae) {
+
+        //Stage markDownHelpStage = new Stage();
+        //WebView webView = new WebView();
+        MyTab examplesTab = new MyTab("Examples", tabPane, colorTheme);
+
+        //SplitPane splitPane = new SplitPane();
+        JFXTextArea textArea = new JFXTextArea();
+        //textArea.textProperty().addListener(o -> Utilities.reparse(textArea.getText(), webView));
+
+        //splitPane.getItems().add(0, textArea);
+        //splitPane.getItems().add(1, webView);
+
+        examplesTab.setTextArea(textArea);
+
+        
+        tabPane.getTabs().add(examplesTab);
+        tabPane.getSelectionModel().select(examplesTab);
+        textArea.setText("# Title 1\n\n" +
+                "## Title 2\n\n" +
+                "### Title 3\n\n" +
+                "[link](https://github.com/mayuso/JMarkPad)\n\n" +
+                "List:\n" +
+                "* item 1\n" +
+                "* item 2\n" +
+                "* item 3\n\n" +
+                "**bold**\n\n" +
+                "*italics*\n\n");
+
+    }
+
+    @FXML
+    public void aboutClicked(ActionEvent ae) {
+        drawersStack.toggle(aboutDrawer);
+        drawersStack.setMouseTransparent(false);
+    }
+
+
+    private boolean isFileIsAlreadyOpen(String filePath) {
+        boolean result = false;
+        for (int i = 0; i < tabPane.getTabs().size(); i++) {
+            MyTab currentlyOpenTab = (MyTab) tabPane.getTabs().get(i);
+            if (currentlyOpenTab.getFilePath().equals(filePath)) {
+                tabPane.getSelectionModel().select(i);
+                result = true;
+            }
+        }
+        return result;
+    }
+
+
+    private void openFileIntoTab(File file, MyTab tab) throws IOException {
+
+        BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
+        String text;
+
+        JFXTextArea textArea = new JFXTextArea("");
+        tab.setTextArea(textArea);
+        while ((text = bufferedReader.readLine()) != null) {
+            textArea.appendText(text + "\n");
+        }
+        bufferedReader.close();
+
+    }
+
     @Override
     public void stop() {
         String[] filePaths = new String[tabPane.getTabs().size()];
@@ -293,9 +346,9 @@ public class UI extends Application implements Initializable {
             variablesToSave.red = colorTheme.getRed();
             variablesToSave.green = colorTheme.getGreen();
             variablesToSave.blue = colorTheme.getBlue();
-            variablesToSave.paths= filePaths;
+            variablesToSave.paths = filePaths;
             xml.writeVariables(variablesToSave);
-            
+
         } catch (SAXException | IOException | ParserConfigurationException e) {
             e.printStackTrace();
         }
@@ -313,19 +366,14 @@ public class UI extends Application implements Initializable {
     }
 
     public void refreshTheme() {
-        String colorThemeString = toRGB(colorTheme), colorThemeStringBrighter = toRGB(colorTheme.brighter().brighter());
+        String colorThemeString = Utilities.toRGB(colorTheme), colorThemeStringBrighter = Utilities.toRGB(colorTheme.brighter().brighter());
         decorator.setStyle("-fx-decorator-color: " + colorThemeString + ";");
         menuBar.setStyle("-fx-background-color: " + colorThemeString + ";");
         tabPane.setStyle("tab-header-background: " + colorThemeStringBrighter + ";");
         for (int i = 0; i < tabPane.getTabs().size(); i++) {
-            ((MyTab) tabPane.getTabs().get(i)).updateButtonColor(colorThemeString);
+            ((MyTab) tabPane.getTabs().get(i)).updateButtonColor(colorTheme);
         }
     }
 
-    private static String toRGB(Color color) {
-        return String.format("#%02X%02X%02X",
-                (int) (color.getRed() * 255),
-                (int) (color.getGreen() * 255),
-                (int) (color.getBlue() * 255));
-    }
+
 }

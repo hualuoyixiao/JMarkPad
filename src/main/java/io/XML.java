@@ -30,13 +30,11 @@ public class XML {
         try {
             document = documentBuilder.parse(new File(filePath));
         } catch (FileNotFoundException | SAXParseException e) {
-            new File(filePath).delete();
             document = documentBuilder.newDocument();
-
         }
     }
 
-    public String loadVariable(String tagName) {
+    public String loadVariable(String tagName) throws NullPointerException{
         return document.getElementsByTagName(tagName).item(0).getTextContent();
     }
 
@@ -107,6 +105,4 @@ public class XML {
             e.printStackTrace();
         }
     }
-
-
 }
